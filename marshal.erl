@@ -10,11 +10,14 @@
 
 -define(FIXNUM, 105).
 
+-define(UCLASS, 67).
 -define(STRING, 34).
 -define(ARRAY, 91).
 -define(HASH, 123).
 
 -define(SYMBOL, 58).
+-define(IVAR, 73).
+-define(LINK, 64).
 
 parse_file(Filename) ->
     case file:read_file(Filename) of
@@ -45,6 +48,8 @@ parse_element(?FALSE, <<D/binary>>) ->
     {false, D};
 parse_element(?FIXNUM, <<S:8, D/binary>>) ->
     parse_fixnum(S, D);
+parse_element(?UCLASS, <<D/binary>>) ->
+    parse_uclass(D);
 parse_element(?STRING, <<S:8, D/binary>>) ->
     parse_string(S, D);
 parse_element(?ARRAY, <<S:8, D/binary>>) ->
@@ -52,10 +57,18 @@ parse_element(?ARRAY, <<S:8, D/binary>>) ->
 parse_element(?HASH, <<S:8, D/binary>>) ->
     parse_hash(S, D);
 parse_element(?SYMBOL, <<S:8, D/binary>>) ->
-    parse_symbol(S, D).
+    parse_symbol(S, D);
+parse_element(_T, <<T:8, D/binary>>) ->
+    parse_element(T, D).
 
 parse_fixnum(S, D) ->
     unpack(S, D).
+
+parse_uclass(<<T:8, D/binary>>) ->
+    {_ClassName, D2} = parse_element(T, D),
+    <<T2:8, _:8, S:8, D3/binary>> = D2,
+    D4 = list_to_binary([S] ++ binary_to_list(D3)),
+    parse_element(T2, D4).
 
 parse_string(S, D) ->
     {Size, D2} = unpack(S, D),
