@@ -97,18 +97,21 @@ parse_hash_element(<<T:8, D/binary>>) ->
     {Value, D4} = parse_element(T2, D3),
     {{Key, Value}, D4}.
 
+%% Helpers
+
 unpack(N, D) when N =:= 0 ->
     {N, D};
 unpack(N, D) when N >= 6, N =< 127 ->
     {N - 5, D};
-unpack(N, D) when N > 1, N =< 4 ->
+unpack(N, D) when N >= 1, N =< 4 ->
     {N2, D2} = read_bytes(D, N),
-    <<N3:32/little-unsigned, _>> = list_to_binary(N2 ++ [0, 0, 0]),
-    {N3, D2};
-unpack(N, D) when N =:= 1 ->
-    {N2, D2} = read_bytes(D, N),
-    <<N3:32/little-unsigned>> = list_to_binary(N2 ++ [0, 0, 0]),
+    N3 = read_integer(list_to_binary(N2 ++ [0, 0, 0])),
     {N3, D2}.
+
+read_integer(<<N:32/little-unsigned>>) ->
+    N;
+read_integer(<<N:32/little-unsigned, _>>) ->
+    N.
 
 read_bytes(Data, Count) ->
     read_bytes(Data, Count, []).
