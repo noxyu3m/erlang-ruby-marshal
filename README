@@ -1,0 +1,17 @@
+
+Ruby:
+
+cookie = {
+  :user_id => 1024,
+  :session_id => '56588901e819883d90fec315f4331bc2'
+}
+
+File.open('cookie.bin', 'w') do |f|
+  f.write(Marshal.dump(cookie))
+end
+
+Erlang:
+
+1> marshal:parse_file("cookie.bin").
+[[{session_id,"56588901e819883d90fec315f4331bc2"},
+  {user_id,1024}]]
