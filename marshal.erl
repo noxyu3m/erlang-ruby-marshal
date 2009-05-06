@@ -119,7 +119,9 @@ unpack(N, D) when N >= 6, N =< 127 ->
 unpack(N, D) when N >= 1, N =< 4 ->
     {N2, D2} = read_bytes(D, N),
     N3 = read_integer(list_to_binary(N2 ++ [0, 0, 0])),
-    {N3, D2}.
+    {N3, D2};
+unpack(N, D) when N =< -6, N >= -128 ->
+    {N + 5, D}.
 
 read_integer(<<N:32/little-unsigned>>) ->
     N;
