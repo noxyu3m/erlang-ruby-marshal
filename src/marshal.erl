@@ -1,5 +1,7 @@
 -module(marshal).
+
 -export([parse_file/1, parse/1]).
+-export([test/0]).
 
 -include("marshal.hrl").
 
@@ -28,13 +30,18 @@ parse(<<T:8, D/binary>>, Acc) ->
 parse_element(?TYPE_NIL, <<D/binary>>) -> {nil, D};
 parse_element(?TYPE_TRUE, <<D/binary>>) -> {true, D};
 parse_element(?TYPE_FALSE, <<D/binary>>) -> {false, D};
+
 parse_element(?TYPE_FIXNUM, <<S:8, D/binary>>) -> parse_fixnum(S, D);
-parse_element(?TYPE_UCLASS, <<D/binary>>) -> parse_uclass(D);
+parse_element(?TYPE_FLOAT, <<S:8, D/binary>>) -> parse_float(S, D);
+
 parse_element(?TYPE_STRING, <<S:8, D/binary>>) -> parse_string(S, D);
 parse_element(?TYPE_REGEXP, <<S:8, D/binary>>) -> parse_regexp(S, D);
+
 parse_element(?TYPE_ARRAY, <<S:8, D/binary>>) -> parse_array(S, D);
 parse_element(?TYPE_HASH, <<S:8, D/binary>>) -> parse_hash(S, D);
+
 parse_element(?TYPE_SYMBOL, <<S:8, D/binary>>) -> parse_symbol(S, D);
+parse_element(?TYPE_UCLASS, <<D/binary>>) -> parse_uclass(D);
 
 parse_element(_T, <<T:8, D/binary>>) -> parse_element(T, D).
 
@@ -42,6 +49,10 @@ parse_element(_T, <<T:8, D/binary>>) -> parse_element(T, D).
 
 parse_fixnum(S, D) ->
     unpack(S, D).
+
+parse_float(S, D) ->
+    {Float, D2} = parse_string(S, D),
+    {list_to_float(Float), D2}.
 
 parse_string(S, D) ->
     {Size, D2} = unpack(S, D),
@@ -51,17 +62,6 @@ parse_regexp(S, D) ->
     {RegExp, D2} = parse_string(S, D),
     <<_:8, D3/binary>> = D2,
     {{regexp, RegExp}, D3}.
-
-parse_symbol(S, D) ->
-    {Size, D2} = unpack(S, D),
-    {Symbol, D3} = read_bytes(D2, Size),
-    {list_to_atom(Symbol), D3}.
-
-parse_uclass(<<T:8, D/binary>>) ->
-    {_ClassName, D2} = parse_element(T, D),
-    <<T2:8, _:8, S:8, D3/binary>> = D2,
-    D4 = list_to_binary([S] ++ binary_to_list(D3)),
-    parse_element(T2, D4).
 
 %% Array
 
@@ -94,6 +94,17 @@ parse_hash_element(<<T:8, D/binary>>) ->
     {Value, D4} = parse_element(T2, D3),
     {{Key, Value}, D4}.
 
+parse_symbol(S, D) ->
+    {Size, D2} = unpack(S, D),
+    {Symbol, D3} = read_bytes(D2, Size),
+    {list_to_atom(Symbol), D3}.
+
+parse_uclass(<<T:8, D/binary>>) ->
+    {_ClassName, D2} = parse_element(T, D),
+    <<T2:8, _:8, S:8, D3/binary>> = D2,
+    D4 = list_to_binary([S] ++ binary_to_list(D3)),
+    parse_element(T2, D4).
+
 %% Helpers
 
 unpack(N, D) when N =:= 0 ->
@@ -119,3 +130,31 @@ read_bytes(Data, 0, Acc) ->
     {Acc, Data};
 read_bytes(<<Byte:8, Data/binary>>, Count, Acc) ->
     read_bytes(Data, Count - 1, Acc ++ [Byte]).
+
+%% Tests
+
+test() ->
+    [{fixnum_test, fixnum_test()},
+     {float_test, float_test()},
+     {string_test, string_test()},
+     {regexp_test, regexp_test()},
+     {array_test, array_test()},
+     {hash_test, hash_test()}].
+
+fixnum_test() ->
+    need_implementation.
+
+float_test() ->
+    [3.141592653589793] =:= parse_file("tests/float_test.bin").
+
+string_test() ->
+    ["Hello, world !!!"] =:= parse_file("tests/string_test.bin").
+
+regexp_test() ->
+    need_implementation.
+
+array_test() ->
+    [[2, 4, 8, 16, 32]] =:= parse_file("tests/array_test.bin").
+
+hash_test() ->
+    need_implementation.
