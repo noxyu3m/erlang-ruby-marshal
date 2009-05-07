@@ -10,7 +10,7 @@ stop() ->
     application:stop(crypto).
 
 parse(Cookie) ->
-    [Data, Digest] = string:tokens(Cookie, "--"),
+    [Data, Digest] = string:tokens(decode(Cookie), "--"),
     case verify(Data, Digest) of
         false -> {error, verify_failed};
         true -> {ok, marshal:parse(base64:decode(Data))}
@@ -22,6 +22,16 @@ verify(Data, Digest) ->
 
 generate_digest(Data) ->
     lists:flatten(list_to_hex(binary_to_list(crypto:sha_mac(?SECRET, Data)))).
+
+decode(S) ->
+    decode(S, []).
+
+decode([], Acc) ->
+    lists:reverse(Acc);
+decode([H1, H2, H3 | T], Acc) when H1 =:= 37, H2 =:= 51, H3 =:= 68 ->
+    decode(T, [$= | Acc]);
+decode([H | T], Acc) ->
+    decode(T, [H | Acc]).
 
 %% http://sacharya.com/md5-in-erlang/
 
