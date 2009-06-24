@@ -106,12 +106,12 @@ encode_bignum(A) ->
   <<?TYPE_BIGNUM:8, Sign:8, Size/binary, A:Nbits/little-unsigned>>.
   
 encode_string(A) ->
-  Binary = utf8:to_binary(A),
+  Binary = unicode:characters_to_binary(A),
   Size = pack(lists:flatlength(A)),
   <<?TYPE_STRING:8, Size/binary, Binary/binary>>.
 
 encode_regexp(A) ->
-  Binary = utf8:to_binary(A),
+  Binary = unicode:characters_to_binary(A),
   Size = pack(lists:flatlength(A)),
   <<?TYPE_REGEXP:8, Size/binary, Binary/binary>>.
 
