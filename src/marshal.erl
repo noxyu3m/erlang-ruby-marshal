@@ -1,6 +1,6 @@
 -module(marshal).
 
--export([parse_file/1, parse/1]).
+-export([parse_file/1, parse/1, encode/1]).
 -export([test/0]).
 
 -include("marshal.hrl").
@@ -24,6 +24,10 @@ parse(<<>>, Acc) ->
 parse(<<T:8, D/binary>>, Acc) ->
     {Element, D2} = parse_element(T, D),
     parse(D2, [Element | Acc]).
+    
+encode(Term) ->
+  Binary = encode_element(Term),
+  <<?MARSHAL_MAJOR:8, ?MARSHAL_MINOR:8, Binary/binary>>.
 
 %% parse_element/2
 
@@ -45,7 +49,26 @@ parse_element(?TYPE_UCLASS, <<D/binary>>) -> parse_uclass(D);
 
 parse_element(_T, <<T:8, D/binary>>) -> parse_element(T, D).
 
-%% Base types
+%% encode_element/1
+
+encode_element(nil) -> <<?TYPE_NIL:8>>;
+encode_element(null) -> encode_element(nil);
+encode_element(undefined) -> encode_element(nil);
+encode_element(true) -> <<?TYPE_TRUE:8>>;
+encode_element(false) -> <<?TYPE_FALSE:8>>;
+encode_element(A) when is_integer(A), A =< 2147483647, A >= -2147483648 -> encode_fixnum(A);
+encode_element(A) when is_integer(A), A > 2147483647 -> encode_bignum(A);
+encode_element(A) when is_integer(A), A < 2147483648 -> encode_bignum(A);
+encode_element(A) when is_float(A) -> encode_float(A);
+encode_element({string, A}) -> encode_string(A);
+encode_element({regexp, A}) -> encode_regexp(A);
+encode_element({array, A}) -> encode_array(A).
+
+%% TODO
+%encode_element({hash, A}) -> encode_hash(A);
+%encode_element({symbol, A}) -> encode_symbol(A).
+
+%% Base types - parse
 
 parse_fixnum(S, D) ->
     unpack(S, D).
@@ -62,6 +85,47 @@ parse_regexp(S, D) ->
     {RegExp, D2} = parse_string(S, D),
     <<_:8, D3/binary>> = D2,
     {{regexp, RegExp}, D3}.
+    
+%% Base types - encode
+
+encode_fixnum(A) ->
+  Binary = pack(A),
+  <<?TYPE_FIXNUM:8, Binary/binary>>.
+  
+encode_float(A) ->
+  Binary = list_to_binary(float_to_list(A)),
+  <<?TYPE_FLOAT:8, Binary/binary>>.
+  
+encode_bignum(A) ->
+  Sign = case A > 0 of
+            true -> $+;
+            _ -> $-
+         end,
+  Nbits = nbits_unsigned(A),
+  Size = pack(trunc(Nbits / 16)),
+  <<?TYPE_BIGNUM:8, Sign:8, Size/binary, A:Nbits/little-unsigned>>.
+  
+encode_string(A) ->
+  Binary = utf8:to_binary(A),
+  Size = pack(lists:flatlength(A)),
+  <<?TYPE_STRING:8, Size/binary, Binary/binary>>.
+
+encode_regexp(A) ->
+  Binary = utf8:to_binary(A),
+  Size = pack(lists:flatlength(A)),
+  <<?TYPE_REGEXP:8, Size/binary, Binary/binary>>.
+
+encode_array(List) ->
+  Size = pack(lists:flatlength(List)),
+  Binary = encode_array(List, <<>>),
+  <<?TYPE_ARRAY:8, Size/binary, Binary/binary>>. 
+
+encode_array([], Acc) ->
+  Acc;
+encode_array(List, Acc) ->
+  [Head | Tail] = List,
+  Binary = encode_element(Head),
+  encode_array(Tail, <<Acc/binary, Binary/binary>>).
 
 %% Array
 
@@ -107,6 +171,19 @@ parse_uclass(<<T:8, D/binary>>) ->
 
 %% Helpers
 
+pack(0) ->
+  <<0:8>>;
+pack(N) when N >= 1, N =< 122 ->
+  N2 = N + 5,
+  <<N2:8>>;
+pack(N) when N =< -1, N >= -122 ->
+  N2 = N - 5,
+  <<N2:8>>;
+pack(N) when N >= 123, N =< 2147483647 ->
+  <<4:8, N:32/little-unsigned>>;
+pack(N) when N =< -123, N >= -2147483648 ->
+  <<-4:8, N:32/little-unsigned>>.
+  
 unpack(N, D) when N =:= 0 ->
     {N, D};
 unpack(N, D) when N >= 6, N =< 127 ->
@@ -130,6 +207,13 @@ read_bytes(Data, 0, Acc) ->
     {Acc, Data};
 read_bytes(<<Byte:8, Data/binary>>, Count, Acc) ->
     read_bytes(Data, Count - 1, Acc ++ [Byte]).
+
+nbits_unsigned(XS) -> % Necessary bit size for an integer value.
+    Min = trunc(math:log(XS) / math:log(2)) + 1,
+    case Min rem 16 of
+      0 -> Min;
+      _ -> Min - (Min rem 16) + 16
+    end.
 
 %% Tests
 

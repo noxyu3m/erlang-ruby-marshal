@@ -16,3 +16,9 @@ run: build
 
 clean:
 	rm -fv $(EBIN_DIR)/*.beam
+
+install: build
+	mkdir -p /usr/local/lib/erlang/lib/erlang-ruby-marshal/ebin
+	mkdir -p /usr/local/lib/erlang/lib/erlang-ruby-marshal/include
+	cp -R $(EBIN_DIR)/*.beam /usr/local/lib/erlang/lib/erlang-ruby-marshal/ebin
+	cp -R $(INCLUDE_DIR)/*.hrl /usr/local/lib/erlang/lib/erlang-ruby-marshal/include

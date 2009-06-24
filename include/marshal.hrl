@@ -6,6 +6,7 @@
 -define(TYPE_FALSE,   $F).
 
 -define(TYPE_FIXNUM,  $i).
+-define(TYPE_BIGNUM,  $l).
 
 -define(TYPE_UCLASS,  $C).
 -define(TYPE_FLOAT,   $f).
