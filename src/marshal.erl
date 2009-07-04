@@ -60,13 +60,12 @@ encode_element(A) when is_integer(A), A =< 2147483647, A >= -2147483648 -> encod
 encode_element(A) when is_integer(A), A > 2147483647 -> encode_bignum(A);
 encode_element(A) when is_integer(A), A < 2147483648 -> encode_bignum(A);
 encode_element(A) when is_float(A) -> encode_float(A);
+encode_element(A) when is_atom(A) -> encode_symbol(A);
 encode_element({string, A}) -> encode_string(A);
 encode_element({regexp, A}) -> encode_regexp(A);
-encode_element({array, A}) -> encode_array(A).
-
-%% TODO
-%encode_element({hash, A}) -> encode_hash(A);
-%encode_element({symbol, A}) -> encode_symbol(A).
+encode_element({array, A}) -> encode_array(A);
+encode_element({hash, A}) -> encode_hash(A);
+encode_element({symbol, A}) -> encode_symbol(A).
 
 %% Base types - parse
 
@@ -106,7 +105,7 @@ encode_bignum(A) ->
   <<?TYPE_BIGNUM:8, Sign:8, Size/binary, A:Nbits/little-unsigned>>.
   
 encode_string(A) ->
-  Binary = unicode:characters_to_binary(A),
+  Binary = unicode:characters_to_binary(A,unicode),
   Size = pack(lists:flatlength(A)),
   <<?TYPE_STRING:8, Size/binary, Binary/binary>>.
 
@@ -126,6 +125,25 @@ encode_array(List, Acc) ->
   [Head | Tail] = List,
   Binary = encode_element(Head),
   encode_array(Tail, <<Acc/binary, Binary/binary>>).
+
+encode_symbol(A)->
+    Binary = unicode:characters_to_binary(atom_to_list(A),unicode),
+    Size = pack(lists:flatlength(atom_to_list(A))),
+    <<?TYPE_SYMBOL:8, Size/binary, Binary/binary>>.
+
+encode_hash(A)->
+    Size = pack(length(A)),
+    Binary = encode_hash(A,<<>>),
+    <<?TYPE_HASH:8, Size/binary, Binary/binary>>.
+
+encode_hash([],Acc)->
+    Acc;
+
+encode_hash(List,Acc)->
+    [{Symbol,Term}|Tail] = List,
+    BinarySymbol = encode_symbol(Symbol),
+    BinaryTerm = encode_element(Term),
+    encode_hash(Tail,<<Acc/binary, BinarySymbol/binary, BinaryTerm/binary>>).
 
 %% Array
 
