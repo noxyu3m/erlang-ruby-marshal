@@ -17,6 +17,12 @@ run: build
 clean:
 	rm -fv $(EBIN_DIR)/*.beam
 
+build-test:
+	$(ERLC) -DTEST $(SRC_DIR)/*.erl
+
+test: clean build-test
+	${ERL} -DTEST -s marshal test -s init stop -noshell
+
 install: build
 	mkdir -p /usr/local/lib/erlang/lib/erlang-ruby-marshal/ebin
 	mkdir -p /usr/local/lib/erlang/lib/erlang-ruby-marshal/include

@@ -1,7 +1,9 @@
 -module(marshal).
-
 -export([parse_file/1, parse/1, encode/1]).
+
+-ifdef(TEST).
 -export([test/0]).
+-endif.
 
 -include("marshal.hrl").
 
@@ -24,7 +26,7 @@ parse(<<>>, Acc) ->
 parse(<<T:8, D/binary>>, Acc) ->
     {Element, D2} = parse_element(T, D),
     parse(D2, [Element | Acc]).
-    
+
 encode(Term) ->
   Binary = encode_element(Term),
   <<?MARSHAL_MAJOR:8, ?MARSHAL_MINOR:8, Binary/binary>>.
@@ -84,17 +86,17 @@ parse_regexp(S, D) ->
     {RegExp, D2} = parse_string(S, D),
     <<_:8, D3/binary>> = D2,
     {{regexp, RegExp}, D3}.
-    
+
 %% Base types - encode
 
 encode_fixnum(A) ->
   Binary = pack(A),
   <<?TYPE_FIXNUM:8, Binary/binary>>.
-  
+
 encode_float(A) ->
   Binary = list_to_binary(float_to_list(A)),
   <<?TYPE_FLOAT:8, Binary/binary>>.
-  
+
 encode_bignum(A) ->
   Sign = case A > 0 of
             true -> $+;
@@ -103,7 +105,7 @@ encode_bignum(A) ->
   Nbits = nbits_unsigned(A),
   Size = pack(trunc(Nbits / 16)),
   <<?TYPE_BIGNUM:8, Sign:8, Size/binary, A:Nbits/little-unsigned>>.
-  
+
 encode_string(A) ->
   Binary = unicode:characters_to_binary(A,unicode),
   Size = pack(lists:flatlength(A)),
@@ -117,7 +119,7 @@ encode_regexp(A) ->
 encode_array(List) ->
   Size = pack(lists:flatlength(List)),
   Binary = encode_array(List, <<>>),
-  <<?TYPE_ARRAY:8, Size/binary, Binary/binary>>. 
+  <<?TYPE_ARRAY:8, Size/binary, Binary/binary>>.
 
 encode_array([], Acc) ->
   Acc;
@@ -201,7 +203,7 @@ pack(N) when N >= 123, N =< 2147483647 ->
   <<4:8, N:32/little-unsigned>>;
 pack(N) when N =< -123, N >= -2147483648 ->
   <<-4:8, N:32/little-unsigned>>.
-  
+
 unpack(N, D) when N =:= 0 ->
     {N, D};
 unpack(N, D) when N >= 6, N =< 127 ->
@@ -235,13 +237,24 @@ nbits_unsigned(XS) -> % Necessary bit size for an integer value.
 
 %% Tests
 
+-ifdef(TEST).
+
 test() ->
-    [{fixnum_test, fixnum_test()},
-     {float_test, float_test()},
-     {string_test, string_test()},
-     {regexp_test, regexp_test()},
-     {array_test, array_test()},
-     {hash_test, hash_test()}].
+    Res = [
+           {fixnum_test, fixnum_test()},
+           {float_test, float_test()},
+           {string_test, string_test()},
+           {regexp_test, regexp_test()},
+           {array_test, array_test()},
+           {hash_test, hash_test()}
+          ],
+    test_out(Res).
+
+test_out([]) ->
+    done;
+test_out([{Test, Res} | T]) ->
+    io:format("~p: ~p~n", [Test, Res]),
+    test_out(T).
 
 fixnum_test() ->
     need_implementation.
@@ -260,3 +273,5 @@ array_test() ->
 
 hash_test() ->
     need_implementation.
+
+-endif.
