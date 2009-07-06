@@ -1,4 +1,18 @@
 
+= erlang-ruby-marshal
+
+== Main
+
+Most comprehensive guide to Ruby marshal you can find here:
+
+http://spec.ruby-doc.org/wiki/Marshaling
+
+or read C source in Ruby sources tree:
+
+http://www.ruby-doc.org/doxygen/1.8.4/marshal_8c-source.html
+
+== Examples
+
 Ruby:
 
 cookie = {
